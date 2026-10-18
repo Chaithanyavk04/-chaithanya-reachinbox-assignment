@@ -15,12 +15,24 @@ export type RateLimitSettings = {
   minimumDelaySeconds: number;
 };
 
+export type SendReservation = {
+  allowed: boolean;
+  retryAfterMs: number;
+  reason:
+    | "allowed"
+    | "global_hourly_limit"
+    | "sender_hourly_limit"
+    | "minimum_delay";
+};
+
 export async function getRateLimitSettings(): Promise<RateLimitSettings> {
   const values = await connection.mget(
     "reachinbox:settings:globalHourlyLimit",
     "reachinbox:settings:senderHourlyLimit",
     "reachinbox:settings:minimumDelaySeconds"
   );
+
+  const minimumDelayValue = values[2];
 
   return {
     globalHourlyLimit: Math.max(
@@ -31,14 +43,14 @@ export async function getRateLimitSettings(): Promise<RateLimitSettings> {
       1,
       Number(values[1]) || DEFAULTS.senderHourlyLimit
     ),
-    
-minimumDelaySeconds: Math.max(
-  0,
-  values[2] !== null && values[2] !== undefined &&
-    Number.isFinite(Number(values[2]))
-    ? Number(values[2])
-    : DEFAULTS.minimumDelaySeconds
-),
+    minimumDelaySeconds: Math.max(
+      0,
+      minimumDelayValue !== null &&
+        minimumDelayValue !== undefined &&
+        Number.isFinite(Number(minimumDelayValue))
+        ? Number(minimumDelayValue)
+        : DEFAULTS.minimumDelaySeconds
+    ),
   };
 }
 
@@ -72,22 +84,23 @@ local interval = tonumber(ARGV[2])
 local globalLimit = tonumber(ARGV[3])
 local senderLimit = tonumber(ARGV[4])
 local ttl = tonumber(ARGV[5])
+local hourWait = tonumber(ARGV[6])
 
 local globalCurrent = tonumber(redis.call("GET", KEYS[1]) or "0")
 local senderCurrent = tonumber(redis.call("GET", KEYS[2]) or "0")
 
-local globalBlocked = globalCurrent >= globalLimit
-local senderBlocked = senderCurrent >= senderLimit
+if globalCurrent >= globalLimit then
+  return {0, hourWait, "global_hourly_limit"}
+end
 
-if globalBlocked or senderBlocked then
-  local hourWait = tonumber(ARGV[6])
-  return {0, hourWait}
+if senderCurrent >= senderLimit then
+  return {0, hourWait, "sender_hourly_limit"}
 end
 
 local nextAllowed = tonumber(redis.call("GET", KEYS[3]) or "0")
 
 if now < nextAllowed then
-  return {0, nextAllowed - now}
+  return {0, nextAllowed - now, "minimum_delay"}
 end
 
 if globalCurrent == 0 then
@@ -112,12 +125,12 @@ if interval > 0 then
   )
 end
 
-return {1, 0}
+return {1, 0, "allowed"}
 `;
 
 export async function reserveEmailSend(
   senderEmail: string
-): Promise<{ allowed: boolean; retryAfterMs: number }> {
+): Promise<SendReservation> {
   const settings = await getRateLimitSettings();
   const now = Date.now();
 
@@ -139,10 +152,11 @@ export async function reserveEmailSend(
     settings.senderHourlyLimit,
     ttlSeconds,
     retryAfterMs
-  )) as [number | string, number | string];
+  )) as [number | string, number | string, string];
 
   return {
     allowed: Number(result[0]) === 1,
     retryAfterMs: Number(result[1]),
+    reason: result[2] as SendReservation["reason"],
   };
 }
