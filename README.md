@@ -1,39 +1,23 @@
 # ReachInbox — Email Scheduling Platform
 
-ReachInbox is an email scheduling application that combines a React frontend, a TypeScript/Express backend, PostgreSQL persistence, Redis-backed background jobs, and Elasticsearch-powered search. It supports scheduled email processing, configurable sending limits, retry handling, Google OAuth authentication, and optional Slack notifications.
+ReachInbox is a full-stack email scheduling application built with React, TypeScript, Express, PostgreSQL, Redis, BullMQ, and Elasticsearch. It supports scheduling emails, processing jobs asynchronously, tracking email status, configuring sending limits, and integrating Google OAuth and Slack.
 
-## Features
+## 1. Technology Stack
 
-- **Authentication:** Google OAuth login and protected API routes.
-- **Email scheduling:** Schedule email jobs for future processing.
-- **Persistent storage:** Store email records in PostgreSQL.
-- **Background processing:** Use Redis and BullMQ to manage scheduled jobs.
-- **Retry handling:** Configure job retries with exponential backoff.
-- **Rate limiting:** Configure global and per-sender sending limits and minimum send delays.
-- **Email testing:** Use Nodemailer with an SMTP provider such as Ethereal.
-- **Search:** Elasticsearch integration for email search.
-- **Queue monitoring:** Bull Board integration for monitoring BullMQ queues.
-- **Settings:** Configure application sending limits.
-- **Slack integration:** Connect and disconnect Slack and support notifications for relevant events.
+- **Frontend:** React, TypeScript, Vite
+- **Backend:** Node.js, Express, TypeScript
+- **Database:** PostgreSQL
+- **Job queue:** Redis and BullMQ
+- **Search:** Elasticsearch
+- **Queue monitoring:** Bull Board
+- **Email:** Nodemailer and SMTP
+- **Authentication:** Google OAuth and Express sessions
+- **Notifications:** Slack OAuth integration
 
-## Technology Stack
-
-| Component | Technologies |
-|---|---|
-| Frontend | React, TypeScript, Vite |
-| Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL |
-| Queue and cache | Redis, BullMQ |
-| Search | Elasticsearch |
-| Queue monitoring | Bull Board |
-| Email | Nodemailer, SMTP |
-| Authentication | Google OAuth, Express sessions |
-| Infrastructure | Docker Compose |
-
-## Project Structure
+## 2. Project Structure
 
 ```text
--chaithanya-reachinbox-assignment/
+.
 ├── backend/
 │   ├── migrations/
 │   │   ├── 001_create_emails.js
@@ -41,56 +25,30 @@ ReachInbox is an email scheduling application that combines a React frontend, a 
 │   ├── src/
 │   │   ├── server.ts
 │   │   ├── worker.ts
+│   │   ├── rateLimiter.ts
 │   │   └── slackRoutes.ts
-│   ├── package.json
-│   └── .env
+│   └── package.json
 ├── frontend/
 │   ├── src/
-│   ├── package.json
-│   └── vite.config.ts
+│   └── package.json
 ├── infra/
 │   └── docker-compose.yml
-├── .gitignore
 └── README.md
 ```
 
-The structure above highlights the main application components; additional source files may exist in each directory.
+## 3. Prerequisites
 
-## Prerequisites
+Install Node.js, npm, and Docker Desktop with Docker Compose.
 
-Install the following before starting the project:
+The following credentials are needed for the corresponding integrations:
 
-- Node.js and npm
-- Docker Desktop with Docker Compose
-- Google OAuth credentials
-- SMTP credentials for email testing
-- Slack app credentials if Slack integration is required
+- Google OAuth client credentials
+- Ethereal SMTP credentials or another compatible SMTP provider
+- Slack app credentials if Slack notifications are required
 
-## Installation and Setup
+## 4. Environment Configuration
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Chaithanyavk04/-chaithanya-reachinbox-assignment.git
-cd -chaithanya-reachinbox-assignment
-```
-
-### 2. Start infrastructure services
-
-Ensure Docker Desktop is running, then execute:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-docker compose -f infra/docker-compose.yml ps
-```
-
-The Compose configuration starts the supporting infrastructure, including PostgreSQL, Redis, and Elasticsearch.
-
-### 3. Configure backend environment variables
-
-Create `backend/.env` and configure the required values for your environment.
-
-Variable names used by the application include:
+Create `backend/.env` and configure the following variables with values appropriate for your environment.
 
 ```dotenv
 PORT=3000
@@ -123,145 +81,180 @@ WORKER_CONCURRENCY=
 MIN_SEND_DELAY_MS=
 ```
 
-Fill in the values required by your local configuration. Do not commit real credentials or secrets to GitHub.
+Use the actual values and required formats expected by the application. Do not commit real credentials, tokens, or secrets.
 
-Configure the Google OAuth redirect URI to match the callback URL used by the backend. Configure the Slack app redirect URL to match the Slack callback route.
+Configure the Google OAuth callback URL in Google Cloud Console to match the backend configuration. Configure the Slack OAuth redirect URL to match the callback route implemented by the application.
 
-### 4. Install backend dependencies
+## 5. Setup and Execution
 
-Open a terminal in the backend directory:
+### Step 1: Start infrastructure
 
-```bash
-cd backend
-npm install
+From the project root:
+
+```powershell
+docker compose -f ".\infra\docker-compose.yml" up -d
+docker compose -f ".\infra\docker-compose.yml" ps
 ```
 
-Run the database migrations:
+Ensure PostgreSQL, Redis, and Elasticsearch are running.
 
-```bash
-npm run migrate
+### Step 2: Install backend dependencies and migrate the database
+
+```powershell
+cd backend
+npm install
+npm.cmd run migrate
 ```
 
 The migrations create the email and Slack connection tables.
 
-### 5. Install frontend dependencies
+### Step 3: Start the backend API
 
-Open another terminal:
+In a dedicated terminal:
 
-```bash
+```powershell
+cd backend
+npm.cmd run dev
+```
+
+The backend is configured to run at `http://localhost:3000`.
+
+Check the health endpoint at `http://localhost:3000/health`.
+
+### Step 4: Start the BullMQ worker
+
+In another terminal:
+
+```powershell
+cd backend
+npm.cmd run worker
+```
+
+Keep the worker running to process queued email jobs.
+
+### Step 5: Start the frontend
+
+In another terminal:
+
+```powershell
 cd frontend
 npm install
+npm.cmd run dev
 ```
 
-Ensure the frontend's API configuration points to the backend at `http://localhost:3000` for local development.
+Open `http://localhost:5173`.
 
-## Running the Application
+### Production builds
 
-Keep each process running in its own terminal.
+Backend:
 
-**Terminal 1 — Infrastructure**
-
-From the project root:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-```
-
-**Terminal 2 — Backend API**
-
-```bash
+```powershell
 cd backend
-npm run dev
+npm.cmd run build
 ```
 
-**Terminal 3 — Email worker**
+Frontend:
 
-```bash
-cd backend
-npm run worker
-```
-
-**Terminal 4 — Frontend**
-
-```bash
+```powershell
 cd frontend
-npm run dev
+npm.cmd run build
 ```
 
-Open the frontend at:
+## 6. Ethereal Email Setup
 
-- Frontend: http://localhost:5173
-- Backend health check: http://localhost:3000/health
+Ethereal provides a test SMTP service for development. Messages are captured for preview and are not delivered to real recipient inboxes.
 
-The health endpoint can be used to verify that the backend is responding. Authentication and integration features require the relevant credentials and configuration.
+1. Visit https://ethereal.email/ and create a test account.
+2. Obtain the SMTP hostname, port, username, and password from the account details.
+3. Configure the corresponding `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_SECURE` values in `backend/.env`.
+4. Restart the backend and worker after changing environment variables.
+5. Schedule a test email through the frontend.
+6. Inspect the worker output and the Ethereal preview URL, when provided by the implementation.
 
-## Email Testing
+Use test data during development. Successful job processing and successful SMTP delivery are distinct outcomes.
 
-The application supports SMTP testing through Nodemailer. Ethereal is useful for development because it provides preview links for test messages rather than delivering them to real recipient inboxes.
+## 7. Architecture Overview
 
-Use test recipients and inspect the resulting preview links when verifying email processing.
+### Email scheduling
 
-## Queue Processing and Reliability
+The frontend submits an email scheduling request to the Express backend. The backend persists the email record in PostgreSQL and uses BullMQ with Redis to manage asynchronous email processing.
 
-BullMQ uses Redis to manage background email jobs. The backend worker processes scheduled jobs and is configured to retry failed jobs with exponential backoff.
+The worker consumes queued jobs and uses the configured SMTP transport to process email deliveries. Email status is stored in the database so that the frontend can display scheduling and processing results.
 
-The application also includes sending-limit configuration and delayed job handling. Actual rate-limit behavior, recovery after restarts, and delivery behavior should be verified in the running environment before relying on them in production.
+### Persistence and restart behavior
 
-## Authentication and Integrations
+PostgreSQL stores the application’s email records. Redis is used by BullMQ to maintain queue and delayed-job state.
 
-### Google OAuth
+A worker restart does not inherently require scheduled jobs to be recreated manually, provided the Redis queue data remains available. Full restart recovery also depends on Redis persistence configuration, database availability, and the job-processing implementation.
 
-Configure a Google OAuth client and set the client ID, client secret, and callback URL in the backend environment. The configured redirect URI must match the URI registered in Google Cloud Console.
+The expected behavior is that future scheduled jobs remain available for processing after a worker restart. This scenario should be demonstrated in the supplied video only after it has been verified.
 
-### Slack
+### Rate limiting and send delay
 
-Configure a Slack app with the appropriate OAuth redirect URL and permissions. The application provides Slack connection status and connect/disconnect functionality.
+The application provides configurable global and per-sender hourly limits, along with a minimum send delay.
 
-Notifications depend on valid OAuth credentials, granted permissions, and correct Slack message destination handling.
+The rate limiter and worker coordinate job processing to enforce configured sending constraints. When a limit is reached, jobs may need to be delayed or rescheduled until sending is permitted.
 
-### Elasticsearch and Bull Board
+The exact enforcement behavior depends on the implementation and configuration. Rate-limit recovery and Slack alert delivery should be verified before being described as fully tested.
 
-Elasticsearch is included for email search. Bull Board is included for queue monitoring. Both require the associated services to be running and the application routes to be configured correctly.
+### Worker concurrency
 
-## Build and Verification
+The `WORKER_CONCURRENCY` environment variable configures the intended worker processing concurrency. This controls how many jobs the worker can process concurrently, subject to the BullMQ worker configuration.
 
-Build the backend:
+Concurrency is distinct from rate limiting: concurrency controls parallel processing, while rate limits constrain how frequently messages may be sent.
 
-```bash
-cd backend
-npm run build
-```
+## 8. Implemented Features
 
-Build the frontend:
+### Backend
 
-```bash
-cd frontend
-npm run build
-```
+- Express API with TypeScript
+- Google OAuth authentication and protected routes
+- PostgreSQL email persistence and database migrations
+- BullMQ-based scheduling and asynchronous job processing
+- Redis-backed queue management
+- Retry handling with exponential backoff
+- Global and per-sender rate-limit configuration
+- Minimum send delay configuration
+- Worker concurrency configuration
+- SMTP integration through Nodemailer
+- Elasticsearch integration for email search
+- Bull Board integration for queue monitoring
+- Settings API
+- Slack OAuth connection, status, and disconnection routes
 
-Both production builds completed successfully during development.
+### Frontend
 
-The backend and frontend also support these scripts:
+- React and TypeScript application
+- Google OAuth login flow
+- Dashboard for email status tracking
+- Email composition and scheduling interface
+- Scheduled and sent email views/tables
+- Settings for sending limits and delays
+- Slack connection and disconnection interface
+- Loading, error, and empty-state handling where implemented
 
-- Backend: `npm run dev`, `npm run start`, `npm run migrate`, `npm run worker`
-- Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`
+## 9. Assumptions and Trade-offs
 
-The backend's default `npm test` script is a placeholder; it does not run an automated test suite.
+- Ethereal is used for development email previews rather than production email delivery.
+- PostgreSQL stores application records, while Redis/BullMQ manages asynchronous job state.
+- The application is configured for local development; production deployment requires additional configuration.
+- Google OAuth and Slack functionality depend on valid external app credentials and redirect URLs.
+- Automated test coverage is limited; the backend's default `npm test` script is a placeholder.
+- Rate-limit enforcement, Slack notifications, and recovery under all failure scenarios require further verification before production use.
 
-## Security Considerations
+## 10. Verification
 
-- Never commit `.env` files, OAuth secrets, SMTP passwords, or session secrets.
-- Restrict access to the database, Redis, Elasticsearch, and queue monitoring interface.
-- Use HTTPS and appropriate secure-cookie settings for production deployments.
-- Use appropriately scoped OAuth permissions and protect authenticated routes.
-- Keep development credentials separate from production credentials.
+The backend TypeScript build and frontend production build completed successfully during development.
 
-## Known Limitations
+Build success does not by itself verify all runtime scenarios. The scheduled-email workflow, dashboard status updates, restart persistence, rate-limit behavior, and Slack notification delivery should be demonstrated only to the extent they have been confirmed.
 
-- Production deployment has not been documented as completed.
-- All failure-recovery and rate-limit scenarios have not been fully verified.
-- SMTP preview testing does not demonstrate delivery to a real recipient.
-- Automated test coverage should be added beyond the current placeholder test script.
+## 11. Security
+
+- Never commit `.env` files or credentials.
+- Keep session secrets, OAuth secrets, and SMTP passwords private.
+- Restrict access to infrastructure and queue-monitoring interfaces.
+- Configure secure cookies and HTTPS for production.
+- Use least-privilege OAuth permissions.
 
 ## License
 
